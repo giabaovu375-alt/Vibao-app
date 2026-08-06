@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>Vibao</title>
+<style>html, body { background: #ffffff !important; }</style>
+<style>
+  :root {
+    --blue: #1a56db;
+    --blue-dark: #1e429f;
+    --blue-pale: #eef2ff;
+    --blue-hover: #dbe4ff;
+    --accent: #1a56db;
+    --ink: #0f1115;
+    --ink-soft: #4b5563;
+    --hint: #9ca3af;
+    --bg: #ffffff;
+    --bg-chat: #ffffff;
+    --bg-card: #ffffff;
+    --bg-side: #fafafa;
+    --border: #e5e7eb;
+    --danger: #dc2626;
+    --ok: #16a34a;
+    --warn: #d97706;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overscroll-behavior-y: contain;
+  }
+
+  #shell {
+    display: flex;
+    height: 100dvh;
+    max-width: 920px;
+    margin: 0 auto;
+    position: relative;
+    background: var(--bg-card);
+    box-shadow: 0 0 40px rgba(30,40,70,0.06);
+  }
+
+  /* ===== Login screen ===== */
+  #login-screen {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 30% 20%, #eef2ff 0%, #eef1f7 55%, #e7ecf7 100%);
+    padding: 24px; text-align: center;
+  }
+  #login-screen.hidden { display: none; }
+  #login-screen h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  #login-screen p { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 26px; max-width: 300px; line-height: 1.5; }
+  #google-signin-btn-container { min-height: 44px; }
+  #login-status { margin-top: 14px; font-size: 12.5px; color: var(--hint); min-height: 18px; }
+  #login-fallback { margin-top: 22px; font-size: 12px; color: var(--hint); max-width: 300px; line-height: 1.5; }
+  #login-fallback a { color: var(--blue); text-decoration: underline; }
+
+  #sidebar {
+    width: 264px;
+    flex-shrink: 0;
+    background: var(--bg-side);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transition: margin-left 0.25s ease;
+    position: relative;
+    z-index: 30;
+  }
+  #sidebar.hidden { margin-left: -264px; }
+
+  #sidebar-header { padding: 14px 12px 10px; flex-shrink: 0; }
+  #new-chat-btn {
+    width: 100%;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #fff; color: var(--ink);
+    font-size: 14px; font-weight: 500;
+  }
+  #new-chat-btn:active { background: var(--blue-pale); }
+
+  #user-card {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 10px; margin: 0 12px 10px; border-radius: 12px;
+    background: #fff; border: 1px solid var(--border);
+  }
+  #user-card img { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; }
+  #user-card .u-info { flex: 1; min-width: 0; }
+  #user-card .u-name { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #user-card .u-quota { font-size: 10.5px; color: var(--hint); margin-top: 1px; }
+  #logout-btn { background: none; border: none; color: var(--hint); font-size: 13px; padding: 4px; flex-shrink: 0; }
+
+  #quota-bar-wrap { padding: 0 12px 10px; }
+  #quota-bar-track { height: 5px; border-radius: 4px; background: var(--border); overflow: hidden; }
+  #quota-bar-fill { height: 100%; background: var(--blue); border-radius: 4px; transition: width 0.3s ease, background 0.3s ease; width: 0%; }
+  #quota-bar-fill.warn { background: var(--warn); }
+  #quota-bar-fill.danger { background: var(--danger); }
+
+  #conv-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .conv-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 10px; border-radius: 9px;
+    font-size: 13.5px; color: var(--ink-soft);
+    margin-bottom: 2px; position: relative;
+  }
+  .conv-item .conv-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conv-item.active { background: var(--blue-pale); color: var(--blue-dark); font-weight: 600; }
+  .conv-item:not(.active):active { background: #eef1f6; }
+  .conv-del { opacity: 0; flex-shrink: 0; background: none; border: none; color: var(--hint); font-size: 15px; padding: 2px 4px; }
+  .conv-item:active .conv-del { opacity: 1; }
+  .conv-del:active { color: var(--danger); }
+
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  header {
+    flex-shrink: 0; padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+    background: #fff;
+  }
+  #menu-toggle { background: none; border: none; font-size: 19px; color: var(--ink-soft); padding: 4px 6px; flex-shrink: 0; }
+  header h1 { font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -0.01em; flex: 1; }
+  #settings-toggle { background: none; border: none; font-size: 17px; color: var(--hint); padding: 4px 6px; }
+
+  #chat {
+    flex: 1; overflow-y: auto;
+    padding: 18px 14px 8px;
+    display: flex; flex-direction: column; gap: 14px;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg-chat);
+  }
+
+  .row { display: flex; }
+  .row.user { justify-content: flex-end; }
+  .row.ai { justify-content: flex-start; }
+
+  .bubble {
+    max-width: 88%; padding: 13px 17px; border-radius: 18px;
+    font-size: 16px; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word;
+  }
+  .row.user .bubble { background: var(--blue); color: #fff; border-bottom-right-radius: 4px; }
+  .row.ai .bubble { background: #f7f8fa; color: var(--ink); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bubble a { color: inherit; text-decoration: underline; }
+  .row.user .bubble a { color: #d7e6ff; }
+
+  .bubble-wrap { display: flex; flex-direction: column; gap: 4px; max-width: 88%; }
+  .row.user .bubble-wrap { align-items: flex-end; }
+  .row.ai .bubble-wrap { align-items: flex-start; }
+  .row.ai { align-items: flex-end; gap: 8px; }
+  .ai-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+  .bubble-actions { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--hint); padding: 0 6px; }
+  .bubble-time { font-size: 10.5px; color: var(--hint); }
+  .bubble-tool-tag {
+    font-size: 10px; color: var(--accent); background: #f1ebfd; padding: 1px 7px;
+    border-radius: 8px; font-weight: 600;
+  }
+  .bubble-actions button { background: none; border: none; color: var(--hint); font-size: 13px; padding: 2px; line-height: 1; }
+  .bubble-actions button:active { color: var(--blue); }
+
+  .cursor-blink::after {
+    content: '▊'; display: inline-block; margin-left: 1px;
+    animation: blink 0.9s step-start infinite; color: var(--blue);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .bubble.typing { display: flex; align-items: center; gap: 4px; padding: 13px 16px; }
+  .typing span { width: 6px; height: 6px; border-radius: 50%; background: #9fb3d1; animation: bounce 1.2s infinite ease-in-out; }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
+  .typing-label { font-size: 11.5px; color: var(--hint); margin-left: 4px; }
+
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 14px 12px; flex-shrink: 0; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 20px;
+    background: var(--blue-pale); color: var(--blue-dark);
+    font-size: 13px; font-weight: 500; border: none; white-space: nowrap;
+  }
+  .chip:active { background: var(--blue-hover); }
+
+  #input-bar {
+    flex-shrink: 0; display: flex; align-items: flex-end; gap: 6px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: #fff;
+  }
+  #text-input {
+    flex: 1; resize: none;
+    border: 1px solid var(--border);
+    background: #f6f8fc; border-radius: 22px;
+    padding: 11px 16px; font-size: 15px; line-height: 1.3;
+    max-height: 120px; outline: none; font-family: inherit; color: var(--ink);
+  }
+  #text-input:focus { border-color: var(--blue); background: #fff; }
+
+  .round-btn {
+    flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; border: none;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  #mic-btn { background: var(--blue-pale); color: var(--blue-dark); }
+  #mic-btn.listening { background: var(--danger); color: #fff; animation: pulse 1.2s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(232,72,58,0.5); }
+    70% { box-shadow: 0 0 0 10px rgba(232,72,58,0); }
+    100% { box-shadow: 0 0 0 0 rgba(232,72,58,0); }
+  }
+  #send-btn { background: var(--blue); color: #fff; }
+  #send-btn:active { background: var(--blue-dark); }
+  #send-btn:disabled { background: #c6d4ec; }
+
+  #speaking-indicator {
+    display: none; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--blue-dark);
+    padding: 4px 14px; flex-shrink: 0;
+  }
+  #speaking-indicator.on { display: flex; }
+  #speaking-indicator button {
+    background: var(--blue-pale); border: none; border-radius: 12px;
+    color: var(--blue-dark); font-size: 11.5px; padding: 3px 10px; margin-left: 4px;
+  }
+  .wave-bars { display: flex; gap: 2px; align-items: center; height: 12px; }
+  .wave-bars span { width: 2.5px; background: var(--blue); border-radius: 2px; animation: wave 1s infinite ease-in-out; }
+  .wave-bars span:nth-child(1) { height: 40%; animation-delay: 0s; }
+  .wave-bars span:nth-child(2) { height: 100%; animation-delay: 0.15s; }
+  .wave-bars span:nth-child(3) { height: 60%; animation-delay: 0.3s; }
+  .wave-bars span:nth-child(4) { height: 90%; animation-delay: 0.45s; }
+  @keyframes wave { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
+
+  #settings-overlay, #sidebar-overlay {
+    position: fixed; inset: 0; background: rgba(20,25,35,0.4);
+    display: none; z-index: 25;
+  }
+  #settings-overlay { align-items: flex-end; z-index: 50; }
+  #settings-overlay.open { display: flex; }
+  #sidebar-overlay.open { display: none; }
+  @media (max-width: 719px) {
+    #sidebar-overlay.open { display: block; }
+    #sidebar {
+      position: fixed;
+      top: 0; bottom: 0; left: 0;
+      margin-left: 0;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+    }
+    #sidebar.hidden { transform: translateX(-100%); margin-left: 0; }
+    #sidebar:not(.hidden) { transform: translateX(0); }
+  }
+  #settings-sheet {
+    width: 100%; max-width: 560px; margin: 0 auto;
+    background: #fff; border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+    max-height: 85vh; overflow-y: auto; position: relative;
+  }
+  #settings-sheet h2 { font-size: 16px; margin: 0 0 4px; }
+  #settings-sheet .sub { font-size: 12.5px; color: var(--hint); margin: 0 0 16px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%; padding: 11px 13px; border-radius: 10px;
+    border: 1px solid var(--border); background: #f6f8fc;
+    font-size: 14px; outline: none; color: var(--ink); font-family: inherit;
+  }
+  .field input:focus, .field select:focus { border-color: var(--blue); background: #fff; }
+  #save-keys-btn {
+    width: 100%; padding: 13px; border-radius: 12px; border: none;
+    background: var(--blue); color: #fff; font-size: 14.5px; font-weight: 600; margin-top: 4px;
+  }
+  #save-keys-btn:active { background: var(--blue-dark); }
+  .close-sheet { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 20px; color: var(--hint); }
+  .divider { height: 1px; background: var(--border); margin: 18px 0; }
+  .quota-detail-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-soft); margin-bottom: 4px; }
+  .quota-detail-row b { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <img src="avatar.webp" alt="Vibao" style="width:84px;height:84px;border-radius:24px;margin-bottom:18px;box-shadow:0 8px 28px rgba(37,99,235,0.18);">
+  <h1>Vibao</h1>
+  <p>Đăng nhập bằng Google để bắt đầu trò chuyện. Mỗi tài khoản có hạn mức sử dụng riêng mỗi ngày.</p>
+  <button id="google-signin-btn-container" onclick="handleGoogleSignInClick()" style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 22px;font-size:14.5px;font-weight:600;color:var(--ink);box-shadow:0 2px 10px rgba(20,30,60,0.06);">
+    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.6 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"></path><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l6-6C34.6 5.1 29.6 3 24 3 15.9 3 8.9 7.6 6.3 14.7z"></path><path fill="#4CAF50" d="M24 45c5.4 0 10.3-1.8 14.1-5l-6.5-5.5C29.5 36 26.9 37 24 37c-5.3 0-9.8-3.4-11.4-8.1l-6.6 5C8.9 40.4 15.9 45 24 45z"></path><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.5 5.5C40.8 36.4 44 31 44 24c0-1.2-.1-2.4-.4-3.5z"></path></svg>
+    Đăng nhập với Google
+  </button>
+  <div id="login-status">Đang khởi tạo đăng nhập...</div>
+  <div id="login-fallback"></div>
+</div>
+
+<div id="shell">
+  <div id="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <button id="new-chat-btn" onclick="createNewConversation()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Đoạn chat mới
+      </button>
+    </div>
+
+    <div id="user-card" style="display:none;">
+      <img id="user-avatar" src="avatar.webp" alt="" onerror="this.onerror=null;this.src='avatar.webp';">
+      <div class="u-info">
+        <div class="u-name" id="user-name">—</div>
+        <div class="u-quota" id="user-quota-text">—</div>
+      </div>
+      <button id="logout-btn" onclick="confirmLogout()" title="Đăng xuất">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </button>
+    </div>
+    <div id="quota-bar-wrap" style="display:none;">
+      <div id="quota-bar-track"><div id="quota-bar-fill"></div></div>
+    </div>
+
+    <div id="conv-list"></div>
+  </div>
+
+  <div id="main">
+    <header>
+      <button id="menu-toggle" onclick="toggleSidebar()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <h1>Vibao</h1>
+      <button id="settings-toggle" onclick="openSettings()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </header>
+
+    <div id="chat"></div>
+
+    <div id="speaking-indicator">
+      <div class="wave-bars"><span></span><span></span><span></span><span></span></div>
+      <span>Đang đọc...</span>
+      <button onclick="stopSpeaking()">Dừng</button>
+    </div>
+
+    <div class="chips">
+      <button class="chip" onclick='quickSend(`mở youtube "lofi chill"`)'>YouTube lofi</button>
+      <button class="chip" onclick='quickSend(`mở reddit "AI news"`)'>Reddit AI news</button>
+      <button class="chip" onclick='quickSend(`tóm tắt tin tức AI hôm nay`)'>Tóm tắt tin AI</button>
+      <button class="chip" onclick='quickSend(`/quota`)'>Hạn mức</button>
+    </div>
+
+    <div id="input-bar">
+      <textarea id="text-input" rows="1" placeholder="Nhắn hoặc bấm mic để nói..."></textarea>
+      <button id="mic-btn" class="round-btn" onclick="toggleListening()">
+        <svg id="mic-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" y1="19" x2="12" y2="23"></line>
+          <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
+      </button>
+      <button id="send-btn" class="round-btn" onclick="handleSend()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M2 21l21-9L2 3v7l15 2-15 2z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="settings-overlay" onclick="if(event.target===this) closeSettings()">
+  <div id="settings-sheet">
+    <button class="close-sheet" onclick="closeSettings()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+    <h2>Cài đặt</h2>
+
+    <div class="field">
+      <label>Hạn mức hôm nay</label>
+      <div class="quota-detail-row"><span>Đã dùng</span><b id="quota-used-detail">—</b></div>
+      <div class="quota-detail-row"><span>Còn lại</span><b id="quota-remaining-detail">—</b></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>Giọng đọc (Text-to-Speech)</label>
+      <select id="voice-select"></select>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="auto-speak" style="width:auto;">
+        Tự động đọc to câu trả lời của AI
+      </label>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="allow-tools" style="width:auto;" checked>
+        Cho phép AI tự tìm kiếm web khi cần
+      </label>
+    </div>
+
+    <button id="save-keys-btn" onclick="saveSettings()">Lưu cài đặt</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@capacitor/core@6/dist/capacitor.js"></script>
+<script>
+/* ====================== CẤU HÌNH ====================== */
+// Dán URL Worker sau khi deploy, ví dụ: https://vibao-api.yourname.workers.dev
+const API_BASE_URL = 'https://vibao-app-workers.giabaovu375.workers.dev';
+// Dán Google OAuth Client ID sau khi tạo ở Google Cloud Console.
+const GOOGLE_CLIENT_ID = '211100765878-16lc7g9060paekd76rilpkk7maqg0j6q.apps.googleusercontent.com';
+
+function isConfigured(v) {
+  return v && !(v.startsWith('__') && v.endsWith('__'));
+}
+
+/* ====================== AUTH (Google Sign-In) ====================== */
+let currentUser = null; // { email, name, picture, sessionToken }
+
+function loadSavedAuth() {
+  try {
+    const raw = localStorage.getItem('vibao_auth');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function saveAuth(user) {
+  localStorage.setItem('vibao_auth', JSON.stringify(user));
+}
+function clearAuth() {
+  localStorage.removeItem('vibao_auth');
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(decodeURIComponent(atob(base64).split('').map(c =>
+      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+  } catch { return {}; }
+}
+
+const OAUTH_REDIRECT_URI = API_BASE_URL + '/oauth/redirect-bridge';
+
+function getBrowserPlugin() {
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+    return window.Capacitor.Plugins.Browser;
+  }
+  return null;
+}
+function getAppPlugin() {
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+    return window.Capacitor.Plugins.App;
+  }
+  return null;
+}
+
+function genRandomString(len) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let out = '';
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function initGoogleSignIn() {
+  const statusEl = document.getElementById('login-status');
+  const fallbackEl = document.getElementById('login-fallback');
+
+  if (!isConfigured(GOOGLE_CLIENT_ID)) {
+    statusEl.textContent = 'Chưa cấu hình Google Client ID.';
+    fallbackEl.innerHTML = 'Admin cần dán GOOGLE_CLIENT_ID vào file cấu hình.';
+    return;
+  }
+  statusEl.textContent = '';
+
+  const appPlugin = getAppPlugin();
+  if (appPlugin) {
+    appPlugin.addListener('appUrlOpen', (data) => {
+      handleOAuthRedirect(data.url);
+    });
+  }
+}
+
+async function handleGoogleSignInClick() {
+  const statusEl = document.getElementById('login-status');
+  const browser = getBrowserPlugin();
+  if (!browser) {
+    statusEl.textContent = 'Trình duyệt hệ thống chưa sẵn sàng, thử lại sau vài giây.';
+    return;
+  }
+
+  const state = genRandomString(24);
+  sessionStorage.setItem('oauth_state', state);
+
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: OAUTH_REDIRECT_URI,
+    response_type: 'code',
+    scope: 'openid email profile',
+    state,
+    prompt: 'consent select_account',
+    access_type: 'offline',
+  });
+  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+
+  statusEl.textContent = 'Đang mở đăng nhập Google...';
+  try {
+    await browser.open({ url: authUrl });
+  } catch (e) {
+    statusEl.textContent = 'Không mở được trình duyệt: ' + (e.message || e);
+  }
+}
+
+async function handleOAuthRedirect(url) {
+  const statusEl = document.getElementById('login-status');
+  const browser = getBrowserPlugin();
+  if (browser) { try { await browser.close(); } catch (_) {} }
+
+  if (!url || url.indexOf('oauth-callback') === -1) return;
+
+  try {
+    const query = url.split('?')[1] || '';
+    const params = new URLSearchParams(query);
+    const code = params.get('code');
+    const state = params.get('state');
+    const error = params.get('error');
+
+    if (error) throw new Error('Google từ chối: ' + error);
+    if (!code) throw new Error('Không nhận được mã code từ Google');
+    const savedState = sessionStorage.getItem('oauth_state');
+    if (state !== savedState) throw new Error('State không khớp, có thể bị tấn công CSRF');
+
+    statusEl.textContent = 'Đang xác thực...';
+
+    if (!isConfigured(API_BASE_URL)) {
+      throw new Error('Chưa cấu hình API_BASE_URL');
+    }
+
+    const resp = await fetch(API_BASE_URL + '/api/oauth/exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, redirectUri: OAUTH_REDIRECT_URI }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || 'Server từ chối trao đổi mã code');
+
+    currentUser = {
+      email: data.email,
+      name: data.name || data.email,
+      picture: data.picture || 'avatar.webp',
+      sessionToken: data.sessionToken,
+    };
+    saveAuth(currentUser);
+    statusEl.textContent = '';
+    enterApp();
+  } catch (e) {
+    statusEl.innerHTML = 'Đăng nhập thất bại.<br>Chi tiết: ' + (e && e.message ? e.message : String(e));
+  }
+}
+
+function confirmLogout() {
+  if (window.confirm('Bạn có chắc muốn đăng xuất? Lịch sử chat trên máy này vẫn được giữ lại.')) {
+    logout();
+  }
+}
+
+async function logout() {
+  currentUser = null;
+  clearAuth();
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('user-card').style.display = 'none';
+  document.getElementById('quota-bar-wrap').style.display = 'none';
+}
+
+function enterApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('user-card').style.display = 'flex';
+  document.getElementById('quota-bar-wrap').style.display = 'block';
+  document.getElementById('user-avatar').src = currentUser.picture || 'avatar.webp';
+  document.getElementById('user-name').textContent = currentUser.name;
+  refreshQuota();
+  init();
+}
+
+/* ====================== QUOTA ====================== */
+let lastQuota = null;
+
+function renderQuotaUI(q) {
+  lastQuota = q;
+  const pct = q.limit > 0 ? Math.min(100, Math.round((q.used / q.limit) * 100)) : 0;
+  const fill = document.getElementById('quota-bar-fill');
+  fill.style.width = pct + '%';
+  fill.classList.remove('warn', 'danger');
+  if (pct >= 90) fill.classList.add('danger');
+  else if (pct >= 70) fill.classList.add('warn');
+
+  const remainingPct = q.limit > 0 ? Math.max(0, 100 - pct) : 100;
+  document.getElementById('user-quota-text').textContent = `Còn ${remainingPct}% hạn mức hôm nay`;
+  document.getElementById('quota-used-detail').textContent = pct + '%';
+  document.getElementById('quota-remaining-detail').textContent = remainingPct + '%';
+}
+
+async function refreshQuota() {
+  if (!currentUser || !isConfigured(API_BASE_URL)) return;
+  try {
+    const resp = await fetch(API_BASE_URL + '/api/quota', {
+      headers: { 'Authorization': 'Bearer ' + currentUser.sessionToken },
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderQuotaUI(data);
+  } catch (e) { console.warn('Không lấy được quota:', e); }
+}
+
+/* ====================== HỘI THOẠI (localStorage, per-device) ====================== */
+function loadConversations() {
+  try {
+    const raw = localStorage.getItem('vibao_conversations');
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+function saveConversations() {
+  localStorage.setItem('vibao_conversations', JSON.stringify(conversations));
+}
+function loadActiveId() { return localStorage.getItem('vibao_active_id') || null; }
+function saveActiveId(id) { localStorage.setItem('vibao_active_id', id); }
+function loadPrefs() {
+  return {
+    autoSpeak: localStorage.getItem('vibao_autospeak') === '1',
+    voiceURI: localStorage.getItem('vibao_voice') || '',
+    allowTools: localStorage.getItem('vibao_allow_tools') !== '0',
+  };
+}
+
+let conversations = loadConversations();
+let activeId = loadActiveId();
+
+function genId() { return 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7); }
+
+function createNewConversation() {
+  const conv = {
+    id: genId(),
+    title: 'Đoạn chat mới',
+    messages: [{ sender: 'ai', text: WELCOME_TEXT }],
+    createdAt: Date.now(),
+  };
+  conversations.unshift(conv);
+  activeId = conv.id;
+  saveConversations();
+  saveActiveId(activeId);
+  renderSidebar();
+  renderChat();
+  closeSidebarMobile();
+}
+
+function deleteConversation(id, ev) {
+  ev.stopPropagation();
+  conversations = conversations.filter(c => c.id !== id);
+  saveConversations();
+  if (activeId === id) {
+    if (conversations.length > 0) {
+      activeId = conversations[0].id;
+    } else {
+      createNewConversation();
+      return;
+    }
+    saveActiveId(activeId);
+  }
+  renderSidebar();
+  renderChat();
+}
+
+function switchConversation(id) {
+  activeId = id;
+  saveActiveId(id);
+  renderSidebar();
+  renderChat();
+  closeSidebarMobile();
+}
+
+function getActiveConv() {
+  return conversations.find(c => c.id === activeId);
+}
+
+function renderSidebar() {
+  const list = document.getElementById('conv-list');
+  list.innerHTML = '';
+  conversations.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'conv-item' + (c.id === activeId ? ' active' : '');
+    item.onclick = () => switchConversation(c.id);
+    const title = document.createElement('span');
+    title.className = 'conv-title';
+    title.textContent = c.title;
+    const del = document.createElement('button');
+    del.className = 'conv-del';
+    del.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    del.onclick = (ev) => deleteConversation(c.id, ev);
+    item.appendChild(title);
+    item.appendChild(del);
+    list.appendChild(item);
+  });
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const isMobile = window.innerWidth < 720;
+  const willShow = sidebar.classList.contains('hidden');
+
+  if (willShow) {
+    sidebar.classList.remove('hidden');
+    if (isMobile) overlay.classList.add('open');
+  } else {
+    sidebar.classList.add('hidden');
+    overlay.classList.remove('open');
+  }
+}
+function closeSidebarMobile() {
+  if (window.innerWidth < 720) {
+    document.getElementById('sidebar').classList.add('hidden');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
+}
+
+function saveSettings() {
+  localStorage.setItem('vibao_autospeak', document.getElementById('auto-speak').checked ? '1' : '0');
+  localStorage.setItem('vibao_allow_tools', document.getElementById('allow-tools').checked ? '1' : '0');
+  const sel = document.getElementById('voice-select');
+  localStorage.setItem('vibao_voice', sel.value || '');
+  closeSettings();
+  appendAndRender('ai', 'Đã lưu cài đặt rồi nha 👍');
+}
+function openSettings() {
+  const p = loadPrefs();
+  document.getElementById('auto-speak').checked = p.autoSpeak;
+  document.getElementById('allow-tools').checked = p.allowTools;
+  populateVoices();
+  if (lastQuota) renderQuotaUI(lastQuota);
+  document.getElementById('settings-overlay').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function populateVoices() {
+  const sel = document.getElementById('voice-select');
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  const viVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('vi'));
+  const list = viVoices.length ? viVoices : voices;
+  sel.innerHTML = '';
+  if (list.length === 0) {
+    sel.innerHTML = '<option value="">(Không tìm thấy giọng đọc)</option>';
+    return;
+  }
+  const p = loadPrefs();
+  list.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.voiceURI;
+    opt.textContent = v.name + ' (' + v.lang + ')';
+    if (v.voiceURI === p.voiceURI) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = populateVoices;
+}
+
+const WELCOME_TEXT = 'Xin chào! 👋 Vài cách dùng Vibao:\n\n• Cứ hỏi tự do, mình tự hiểu và tự tìm kiếm web khi cần thông tin mới\n• `mở youtube "từ khóa"` / `mở google "..."` / `mở reddit "..."` — mở nhanh trang tìm kiếm\n• `tóm tắt <chủ đề>` — mình tự search rồi tóm tắt\n• `/chat <câu hỏi>` — hỏi thẳng AI, bỏ qua parse lệnh\n• `/quota` — xem hạn mức còn lại hôm nay\n• `/clear` — xoá lịch sử đoạn chat hiện tại\n• `/help` — xem lại danh sách lệnh\n• Bấm 🎤 để nói thay vì gõ';
+
+const chatEl = document.getElementById('chat');
+const inputEl = document.getElementById('text-input');
+const sendBtn = document.getElementById('send-btn');
+
+function renderMarkdown(text) {
+  let escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // Code block ```...```
+  escaped = escaped.replace(/```([\s\S]*?)```/g, (_, code) => `<pre style="background:#f3f4f6;border-radius:8px;padding:10px 12px;overflow-x:auto;font-size:13px;margin:6px 0;"><code>${code.trim()}</code></pre>`);
+  // Inline code `...`
+  escaped = escaped.replace(/`([^`\n]+)`/g, '<code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:0.92em;">$1</code>');
+  // Bold **...**
+  escaped = escaped.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+  // Italic *...*
+  escaped = escaped.replace(/\*([^*\n]+)\*/g, '<i>$1</i>');
+  // Links
+  escaped = escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  // Bullet lists: dòng bắt đầu bằng "- " hoặc "• "
+  escaped = escaped.replace(/(^|\n)[•\-]\s+(.+)/g, '$1<span style="display:block;padding-left:14px;position:relative;"><span style="position:absolute;left:0;">•</span>$2</span>');
+
+  return escaped;
+}
+
+function linkify(text) {
+  return renderMarkdown(text);
+}
+
+function formatTime(ts) {
+  const d = ts ? new Date(ts) : new Date();
+  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderChat() {
+  const conv = getActiveConv();
+  chatEl.innerHTML = '';
+  if (!conv) return;
+  conv.messages.forEach((msg) => {
+    addBubbleToDOM(msg.sender, msg.text, true, msg.time, msg.usedTool);
+  });
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+const ICON_COPY = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+const ICON_CHECK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+const ICON_SPEAKER = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
+
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const old = btn.innerHTML;
+    btn.innerHTML = ICON_CHECK;
+    setTimeout(() => { btn.innerHTML = old; }, 1200);
+  }).catch(() => {});
+}
+
+function addBubbleToDOM(sender, text, withActions, time, usedTool) {
+  const row = document.createElement('div');
+  row.className = 'row ' + sender;
+  if (sender === 'ai') {
+    const avatar = document.createElement('img');
+    avatar.src = 'avatar.webp';
+    avatar.className = 'ai-avatar';
+    avatar.alt = 'Vibao';
+    row.appendChild(avatar);
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'bubble-wrap';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = linkify(text);
+  wrap.appendChild(bubble);
+
+  if (withActions) {
+    const actions = document.createElement('div');
+    actions.className = 'bubble-actions';
+
+    if (usedTool) {
+      const tag = document.createElement('span');
+      tag.className = 'bubble-tool-tag';
+      tag.textContent = '🔎 đã tìm web';
+      actions.appendChild(tag);
+    }
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'bubble-time';
+    timeSpan.textContent = formatTime(time);
+    actions.appendChild(timeSpan);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.innerHTML = ICON_COPY;
+    copyBtn.title = 'Sao chép';
+    copyBtn.onclick = () => copyToClipboard(text, copyBtn);
+    actions.appendChild(copyBtn);
+
+    if (sender === 'ai') {
+      const speakBtn = document.createElement('button');
+      speakBtn.innerHTML = ICON_SPEAKER;
+      speakBtn.title = 'Đọc to';
+      speakBtn.onclick = () => speakText(text);
+      actions.appendChild(speakBtn);
+    }
+    wrap.appendChild(actions);
+  }
+
+  row.appendChild(wrap);
+  chatEl.appendChild(row);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return bubble;
+}
+
+function appendAndRender(sender, text, usedTool) {
+  const conv = getActiveConv();
+  if (!conv) return;
+  const time = Date.now();
+  conv.messages.push({ sender, text, time, usedTool });
+  saveConversations();
+  addBubbleToDOM(sender, text, true, time, usedTool);
+}
+
+function addTypingBubble(label) {
+  const row = document.createElement('div');
+  row.className = 'row ai';
+  row.id = 'typing-row';
+  row.innerHTML = '<img src="avatar.webp" class="ai-avatar" alt="Vibao"><div class="bubble typing"><span></span><span></span><span></span></div>' +
+    (label ? `<span class="typing-label">${label}</span>` : '');
+  chatEl.appendChild(row);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+function removeTypingBubble() {
+  const el = document.getElementById('typing-row');
+  if (el) el.remove();
+}
+
+function streamTextIntoBubble(fullText, msgTime, usedTool, onDone) {
+  removeTypingBubble();
+  const row = document.createElement('div');
+  row.className = 'row ai';
+  const avatar = document.createElement('img');
+  avatar.src = 'avatar.webp';
+  avatar.className = 'ai-avatar';
+  avatar.alt = 'Vibao';
+  row.appendChild(avatar);
+  const wrap = document.createElement('div');
+  wrap.className = 'bubble-wrap';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble cursor-blink';
+  wrap.appendChild(bubble);
+  row.appendChild(wrap);
+  chatEl.appendChild(row);
+
+  let i = 0;
+  const chunkSize = Math.max(4, Math.ceil(fullText.length / 60)); // ít bước hơn cho tin dài, đỡ giật
+  let lastFrameTime = 0;
+  const frameInterval = 32; // ~30fps, đủ mượt mà không tốn CPU render markdown liên tục
+
+  function step(timestamp) {
+    if (timestamp - lastFrameTime >= frameInterval) {
+      lastFrameTime = timestamp;
+      i += chunkSize;
+      const visible = fullText.slice(0, i);
+      bubble.innerHTML = linkify(visible);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    if (i < fullText.length) {
+      requestAnimationFrame(step);
+      return;
+    }
+
+    bubble.innerHTML = linkify(fullText);
+    bubble.classList.remove('cursor-blink');
+    const actions = document.createElement('div');
+    actions.className = 'bubble-actions';
+
+    if (usedTool) {
+      const tag = document.createElement('span');
+      tag.className = 'bubble-tool-tag';
+      tag.textContent = '🔎 đã tìm web';
+      actions.appendChild(tag);
+    }
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'bubble-time';
+    timeSpan.textContent = formatTime(msgTime);
+    actions.appendChild(timeSpan);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.innerHTML = ICON_COPY;
+    copyBtn.title = 'Sao chép';
+    copyBtn.onclick = () => copyToClipboard(fullText, copyBtn);
+    actions.appendChild(copyBtn);
+
+    const speakBtn = document.createElement('button');
+    speakBtn.innerHTML = ICON_SPEAKER;
+    speakBtn.title = 'Đọc to';
+    speakBtn.onclick = () => speakText(fullText);
+    actions.appendChild(speakBtn);
+
+    wrap.appendChild(actions);
+    if (onDone) onDone();
+  }
+
+  requestAnimationFrame(step);
+}
+
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSend();
+  }
+});
+
+function quickSend(text) {
+  inputEl.value = text;
+  handleSend();
+}
+
+async function handleSend() {
+  const text = inputEl.value.trim();
+  if (!text) return;
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+
+  const conv = getActiveConv();
+  if (!conv) return;
+  const userTime = Date.now();
+  conv.messages.push({ sender: 'user', text, time: userTime });
+  if (conv.title === 'Đoạn chat mới') {
+    conv.title = text.slice(0, 32) + (text.length > 32 ? '…' : '');
+    renderSidebar();
+  }
+  saveConversations();
+  addBubbleToDOM('user', text, true, userTime);
+
+  sendBtn.disabled = true;
+  addTypingBubble();
+
+  try {
+    const { reply, usedTool } = await handleCommand(text, conv);
+    removeTypingBubble();
+    const aiTime = Date.now();
+    conv.messages.push({ sender: 'ai', text: reply, time: aiTime, usedTool });
+    saveConversations();
+    streamTextIntoBubble(reply, aiTime, usedTool, () => {
+      const p = loadPrefs();
+      if (p.autoSpeak) speakText(reply);
+    });
+  } catch (err) {
+    removeTypingBubble();
+    const errText = 'Lỗi: ' + err.message;
+    const aiTime = Date.now();
+    conv.messages.push({ sender: 'ai', text: errText, time: aiTime });
+    saveConversations();
+    addBubbleToDOM('ai', errText, true, aiTime);
+  }
+  sendBtn.disabled = false;
+}
+
+let isListening = false;
+const micBtn = document.getElementById('mic-btn');
+
+function getSpeechPlugin() {
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SpeechRecognition) {
+    return window.Capacitor.Plugins.SpeechRecognition;
+  }
+  return null;
+}
+
+async function toggleListening() {
+  const nativePlugin = getSpeechPlugin();
+
+  if (nativePlugin) {
+    if (isListening) {
+      try { await nativePlugin.stop(); } catch (_) {}
+      return; // isListening/micBtn sẽ được cập nhật qua listener 'listeningState'
+    }
+    try {
+      const perm = await nativePlugin.checkPermissions();
+      if (perm.speechRecognition !== 'granted') {
+        const req = await nativePlugin.requestPermissions();
+        if (req.speechRecognition !== 'granted') {
+          appendAndRender('ai', 'Cần cấp quyền micro để dùng giọng nói. Vào Cài đặt điện thoại > Ứng dụng > Vibao > Quyền để bật.');
+          return;
+        }
+      }
+      const { available } = await nativePlugin.available();
+      if (!available) {
+        appendAndRender('ai', 'Máy này không hỗ trợ nhận diện giọng nói.');
+        return;
+      }
+
+      await nativePlugin.removeAllListeners();
+
+      nativePlugin.addListener('partialResults', (data) => {
+        if (data.matches && data.matches.length) {
+          inputEl.value = data.matches[0];
+          inputEl.style.height = 'auto';
+          inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+        }
+      });
+
+      nativePlugin.addListener('listeningState', (data) => {
+        if (data.status === 'started') {
+          isListening = true;
+          micBtn.classList.add('listening');
+        } else {
+          isListening = false;
+          micBtn.classList.remove('listening');
+          if (inputEl.value.trim()) handleSend();
+        }
+      });
+
+      // start() resolve ngay lập tức khi partialResults=true; trạng thái thật theo dõi qua listener ở trên.
+      nativePlugin.start({
+        language: 'vi-VN',
+        maxResults: 1,
+        partialResults: true,
+        popup: false,
+      }).catch((e) => {
+        isListening = false;
+        micBtn.classList.remove('listening');
+        console.warn('Speech recognition error:', e);
+      });
+    } catch (e) {
+      isListening = false;
+      micBtn.classList.remove('listening');
+      console.warn('Speech recognition error:', e);
+    }
+    return;
+  }
+
+  // Fallback cho môi trường trình duyệt thường (test trên Chrome, không phải APK)
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    appendAndRender('ai', 'Trình duyệt này không hỗ trợ nhận diện giọng nói.');
+    return;
+  }
+  if (isListening) {
+    window.__webRecognition && window.__webRecognition.stop();
+    isListening = false;
+    micBtn.classList.remove('listening');
+    return;
+  }
+  const r = new SR();
+  r.lang = 'vi-VN';
+  r.continuous = false;
+  r.interimResults = true;
+  r.onresult = (event) => {
+    let finalText = '', interimText = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
+      else interimText += event.results[i][0].transcript;
+    }
+    inputEl.value = (finalText || interimText);
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  };
+  r.onend = () => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    if (inputEl.value.trim()) handleSend();
+  };
+  r.onerror = () => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+  };
+  window.__webRecognition = r;
+  try {
+    r.start();
+    isListening = true;
+    micBtn.classList.add('listening');
+  } catch (e) { console.warn(e); }
+}
+
+function getTTSPlugin() {
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech) {
+    return window.Capacitor.Plugins.TextToSpeech;
+  }
+  return null;
+}
+
+function stripMarkdownForSpeech(text) {
+  return text
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/https?:\/\/[^\s]+/g, '')
+    .trim();
+}
+
+async function speakText(rawText) {
+  const text = stripMarkdownForSpeech(rawText);
+  if (!text) return;
+
+  const nativeTTS = getTTSPlugin();
+  const indicator = document.getElementById('speaking-indicator');
+
+  if (nativeTTS) {
+    try {
+      await nativeTTS.stop();
+      indicator.classList.add('on');
+      await nativeTTS.speak({ text, lang: 'vi-VN', rate: 1.0, pitch: 1.0, volume: 1.0 });
+      indicator.classList.remove('on');
+    } catch (e) {
+      indicator.classList.remove('on');
+      console.warn('TTS error:', e);
+    }
+    return;
+  }
+
+  // Fallback cho trình duyệt thường (test Chrome, không phải APK)
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  const p = loadPrefs();
+  if (p.voiceURI) {
+    const voice = window.speechSynthesis.getVoices().find(v => v.voiceURI === p.voiceURI);
+    if (voice) utter.voice = voice;
+  }
+  utter.lang = 'vi-VN';
+  utter.rate = 1.0;
+  utter.onstart = () => indicator.classList.add('on');
+  utter.onend = () => indicator.classList.remove('on');
+  utter.onerror = () => indicator.classList.remove('on');
+  window.speechSynthesis.speak(utter);
+}
+
+async function stopSpeaking() {
+  const nativeTTS = getTTSPlugin();
+  if (nativeTTS) { try { await nativeTTS.stop(); } catch (_) {} }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  document.getElementById('speaking-indicator').classList.remove('on');
+}
+
+const WAKE_WORDS = ['xin chào vibao', 'vibao ơi', 'hey vibao', 'vibao'];
+
+function stripWakeWord(text) {
+  const low = text.toLowerCase().trim();
+  for (const w of WAKE_WORDS) {
+    if (low === w) return '__GREETING__';
+    if (low.startsWith(w)) return text.slice(w.length).trim().replace(/^[,.: ]+/, '');
+  }
+  return text;
+}
+
+function openYoutubeSearch(query) {
+  window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(query), '_blank');
+  return `Đã mở YouTube tìm "${query}".`;
+}
+function openGoogleSearch(query) {
+  window.open('https://www.google.com/search?q=' + encodeURIComponent(query), '_blank');
+  return `Đã mở Google tìm "${query}".`;
+}
+function openRedditSearch(query) {
+  window.open('https://www.reddit.com/search/?q=' + encodeURIComponent(query), '_blank');
+  return `Đã mở Reddit tìm "${query}".`;
+}
+
+/* Trích nội dung trong dấu "" — cú pháp phụ để đánh dấu keyword/query khi mở trang */
+function extractQuoted(text) {
+  const m = text.match(/"([^"]+)"/);
+  return m ? m[1].trim() : null;
+}
+
+const HELP_TEXT = 'Danh sách lệnh Vibao:\n\n• `/chat <câu>` — hỏi thẳng AI, bỏ qua parse lệnh\n• `/quota` — xem hạn mức token còn lại hôm nay\n• `/clear` — xoá lịch sử đoạn chat hiện tại (giữ nguyên tên đoạn chat)\n• `/help` — hiện lại danh sách này\n• `mở youtube/google/reddit "từ khóa"` — mở nhanh trang tìm kiếm\n• `tóm tắt <chủ đề>` — search web + tóm tắt\n• Ngoài ra cứ hỏi tự do, AI tự quyết định có cần tìm web hay không.';
+
+async function handleCommand(raw, conv) {
+  const stripped = stripWakeWord(raw);
+
+  if (stripped === '__GREETING__') {
+    return { reply: 'Xin chào, tôi có thể giúp gì cho bạn?', usedTool: false };
+  }
+
+  const text = stripped;
+  const low = text.toLowerCase().trim();
+  if (!low) return { reply: 'Dạ, tui nghe nè. Bạn cần gì?', usedTool: false };
+
+  if (low === '/help' || low === '/lệnh' || low === '/commands') {
+    return { reply: HELP_TEXT, usedTool: false };
+  }
+
+  if (low === '/quota') {
+    await refreshQuota();
+    if (!lastQuota) return { reply: 'Chưa lấy được thông tin hạn mức, thử lại sau nhé.', usedTool: false };
+    const pct = lastQuota.limit > 0 ? Math.min(100, Math.round((lastQuota.used / lastQuota.limit) * 100)) : 0;
+    const remainingPct = Math.max(0, 100 - pct);
+    return {
+      reply: `Hạn mức hôm nay: còn ${remainingPct}%`,
+      usedTool: false,
+    };
+  }
+
+  if (low === '/clear') {
+    conv.messages = [{ sender: 'ai', text: WELCOME_TEXT }];
+    saveConversations();
+    renderChat();
+    return { reply: 'Đã xoá lịch sử đoạn chat này rồi nha.', usedTool: false };
+  }
+
+  // /chat ép hỏi AI trực tiếp, bỏ qua mọi parse lệnh
+  if (low.startsWith('/chat')) {
+    const q = text.slice(5).trim();
+    const r = await askAI(q || text, conv);
+    return r;
+  }
+
+  const quoted = extractQuoted(text);
+  const hasYoutube = /youtube|\byt\b/.test(low);
+  const hasGoogle = /google|\bgg\b/.test(low);
+  const hasReddit = /reddit/.test(low);
+
+  if (quoted) {
+    if (hasYoutube) return { reply: openYoutubeSearch(quoted), usedTool: false };
+    if (hasReddit) return { reply: openRedditSearch(quoted), usedTool: false };
+    if (hasGoogle) return { reply: openGoogleSearch(quoted), usedTool: false };
+    return { reply: openGoogleSearch(quoted), usedTool: false };
+  }
+
+  if (/^(mở|open|vào|bật)\s+(youtube|yt)\s*$/.test(low)) {
+    window.open('https://www.youtube.com', '_blank');
+    return { reply: 'Đã mở YouTube.', usedTool: false };
+  }
+  if (/^(mở|open|vào|bật)\s+(google|gg)\s*$/.test(low)) {
+    window.open('https://www.google.com', '_blank');
+    return { reply: 'Đã mở Google.', usedTool: false };
+  }
+  if (/^(mở|open|vào|bật)\s+reddit\s*$/.test(low)) {
+    window.open('https://www.reddit.com', '_blank');
+    return { reply: 'Đã mở Reddit.', usedTool: false };
+  }
+
+  // Không match lệnh nào rõ ràng -> hỏi AI qua backend; AI tự quyết định có cần gọi tool web_search không
+  return await askAI(text, conv);
+}
+
+/* ============ Gọi backend (Cloudflare Worker) — thay cho gọi thẳng provider ============ */
+function buildHistoryPayload(conv) {
+  // Gửi tối đa 10 tin gần nhất (trừ tin vừa thêm) để giữ ngữ cảnh mà không tốn quá nhiều token.
+  if (!conv || !conv.messages) return [];
+  return conv.messages.slice(-11, -1).map(m => ({ sender: m.sender, text: m.text }));
+}
+
+async function askAI(prompt, conv) {
+  if (!currentUser) {
+    return { reply: 'Bạn cần đăng nhập Google trước đã nhé.', usedTool: false };
+  }
+  if (!isConfigured(API_BASE_URL)) {
+    return { reply: 'App chưa được cấu hình địa chỉ server (API_BASE_URL). Báo admin nhé.', usedTool: false };
+  }
+
+  const prefs = loadPrefs();
+
+  try {
+    const resp = await fetch(API_BASE_URL + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentUser.sessionToken },
+      body: JSON.stringify({
+        prompt,
+        history: buildHistoryPayload(conv),
+        useTools: prefs.allowTools,
+      }),
+    });
+
+    const data = await resp.json().catch(() => ({}));
+
+    if (resp.status === 401) {
+      logout();
+      return { reply: 'Phiên đăng nhập đã hết hạn, mời đăng nhập lại.', usedTool: false };
+    }
+    if (resp.status === 429) {
+      if (data.quota) renderQuotaUI(data.quota);
+      return { reply: data.error || 'Bạn đã dùng hết hạn mức hôm nay.', usedTool: false };
+    }
+    if (!resp.ok) {
+      return { reply: data.error || `Lỗi server (${resp.status}).`, usedTool: false };
+    }
+
+    if (data.quota) renderQuotaUI(data.quota);
+
+    return { reply: (data.text || '').trim() || 'AI không trả lời được, thử lại nhé.', usedTool: !!data.usedTool };
+  } catch (e) {
+    return { reply: 'Không kết nối được server: ' + e.message, usedTool: false };
+  }
+}
+
+function init() {
+  if (conversations.length === 0) {
+    createNewConversation();
+  } else {
+    if (!activeId || !conversations.find(c => c.id === activeId)) {
+      activeId = conversations[0].id;
+      saveActiveId(activeId);
+    }
+    renderSidebar();
+    renderChat();
+  }
+  if (window.innerWidth < 720) {
+    document.getElementById('sidebar').classList.add('hidden');
+  }
+}
+
+/* ====================== BOOTSTRAP ====================== */
+(function bootstrap() {
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) {
+    window.Capacitor.Plugins.SplashScreen.hide().catch(() => {});
+  }
+  const saved = loadSavedAuth();
+  if (saved && saved.sessionToken) {
+    currentUser = saved;
+    enterApp();
+    // Đã đăng nhập rồi — vẫn cần listener appUrlOpen phòng trường hợp user chủ động
+    // đăng xuất rồi đăng nhập lại trong cùng phiên, nhưng không cần chạy phần kiểm tra
+    // Client ID / hiện trạng thái login-screen vì user không thấy màn đó.
+    const appPlugin = getAppPlugin();
+    if (appPlugin) {
+      appPlugin.addListener('appUrlOpen', (data) => handleOAuthRedirect(data.url));
+    }
+  } else {
+    initGoogleSignIn();
+  }
+})();
+</script>
+
+</body>
+</html>

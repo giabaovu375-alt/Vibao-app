@@ -1,0 +1,18 @@
+{
+  "appId": "com.vibao.app",
+  "appName": "Vibao",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#ffffff",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 300,
+      "launchAutoHide": true,
+      "backgroundColor": "#ffffff",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP",
+      "splashFullScreen": false,
+      "splashImmersive": false
+    }
+  }
+}

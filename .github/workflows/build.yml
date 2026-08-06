@@ -1,0 +1,127 @@
+name: Build APK (Capacitor WebView)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Bake server config into app from Secrets
+        run: |
+          sed -i "s|__API_BASE_URL__|${{ secrets.VIBAO_API_BASE_URL }}|g" www/index.html
+          sed -i "s|__GOOGLE_CLIENT_ID__|${{ secrets.GOOGLE_CLIENT_ID }}|g" www/index.html
+          sed -i "s|__GOOGLE_CLIENT_ID__|${{ secrets.GOOGLE_CLIENT_ID }}|g" capacitor.config.json
+
+      - name: Install npm dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Add Android platform
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Add OAuth redirect intent-filter to AndroidManifest.xml
+        run: |
+          python3 - << 'PYEOF'
+          import re
+          path = "android/app/src/main/AndroidManifest.xml"
+          with open(path, "r", encoding="utf-8") as f:
+              content = f.read()
+
+          intent_filter = '''
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="com.vibao.app" android:host="oauth-callback" />
+                  </intent-filter>
+              </activity>'''
+
+          # Tìm đúng khối <activity ...MainActivity...> ... </activity>, không phải activity đầu tiên bất kỳ.
+          pattern = re.compile(
+              r'(<activity[^>]*android:name="\.MainActivity"[^>]*>.*?)</activity>',
+              re.DOTALL
+          )
+          match = pattern.search(content)
+          if not match:
+              raise SystemExit("Không tìm thấy khối <activity> của MainActivity")
+
+          replacement = match.group(1) + intent_filter.lstrip('\n')
+          content = content[:match.start()] + replacement + content[match.end():]
+
+          # Thêm quyền RECORD_AUDIO cho tính năng voice input (speech-recognition plugin)
+          if 'android.permission.RECORD_AUDIO' not in content:
+              content = content.replace(
+                  '<application',
+                  '<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <application',
+                  1
+              )
+
+          # Thêm khai báo queries TTS_SERVICE (bắt buộc từ Android 11+ để dùng text-to-speech plugin)
+          if 'TTS_SERVICE' not in content:
+              queries_block = '\n    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>'
+              content = content.replace('</manifest>', queries_block + '\n</manifest>')
+
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(content)
+          print("Đã chèn intent-filter OAuth redirect + quyền RECORD_AUDIO vào Manifest")
+          PYEOF
+          cat android/app/src/main/AndroidManifest.xml
+
+      - name: Use fixed debug keystore (stable SHA-1 across builds)
+        run: |
+          mkdir -p ~/.android
+          if [ -n "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/debug.keystore
+          else
+            keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Vibao Debug,O=Vibao,C=VN"
+          fi
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | grep "SHA1:"
+
+      - name: Install ImageMagick for icon generation
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+
+      - name: Generate app icons from avatar.webp
+        run: |
+          ICON_SRC=www/avatar.webp
+          declare -A SIZES=( [mdpi]=48 [hdpi]=72 [xhdpi]=96 [xxhdpi]=144 [xxxhdpi]=192 )
+          for density in "${!SIZES[@]}"; do
+            size=${SIZES[$density]}
+            dir="android/app/src/main/res/mipmap-${density}"
+            mkdir -p "$dir"
+            # Crop phần đầu+vai (60% chiều cao từ trên) rồi fill vuông — tránh viền trắng thừa
+            # do ảnh gốc không vuông (dọc), đồng thời làm nổi rõ khuôn mặt khi icon thu nhỏ.
+            convert "$ICON_SRC" -gravity north -crop 320x176+0+0 +repage -resize ${size}x${size}^ -gravity center -extent ${size}x${size} "$dir/ic_launcher.png"
+            cp "$dir/ic_launcher.png" "$dir/ic_launcher_round.png"
+          done
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vibao-webview-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
